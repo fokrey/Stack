@@ -6,5 +6,7 @@ int main () {
 
     stack_test (&stack, capacity);
 
+    fclose (dumpfile);
+
     return 0;
 }

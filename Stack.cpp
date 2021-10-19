@@ -3,38 +3,36 @@
 int stack_ctor (Stack *stack, const long start_capacity) {
     assert (stack != nullptr);
 
-    dumpfile = fopen ("../dump.txt", "w");
-    if (dumpfile == nullptr) {
-        perror ("Error in opening dumpfile\n");
-        return ERROR_OPEN_FILE;
-    }
-
     stack->size = 0;
-    if (start_capacity < 0) {
-        perror ("Capacity under zero\n");
+    if (start_capacity <= 0) {
+        perror ("Capacity under or equals zero\n");
         return CAPACITY_LESS_ZERO;
     }
-
+    stack->canary_st_left = CANARY_STACK;
     stack->start_capacity = start_capacity;
     stack->capacity = stack->start_capacity;
 
     stack->data = (elem_t *) calloc (stack->capacity * sizeof (elem_t) + 2 * sizeof (canary_t), sizeof (char));
     assert (stack->data != nullptr);
 
-    stack->canary_left = (canary_t *) stack->data;   //data[0] is left canary
-    *stack->canary_left = CANARY_DATA;
+    stack->canary_data_left = *((canary_t *) stack->data);   //data[0] is left canary
+    stack->canary_data_left = CANARY_DATA;
 
     stack->data = (elem_t *)((char *) stack->data + sizeof (canary_t)); //move pointer to data (shift to size of 1 canary)
 
-    stack->canary_right = (canary_t *) (stack->data + stack->capacity);
-    *stack->canary_right = CANARY_DATA;
-    stack->hash = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    stack->canary_data_right = *((canary_t *) (stack->data + stack->capacity));
+    stack->canary_data_right = CANARY_DATA;
+    stack->canary_st_right = CANARY_STACK;
+    stack->hash_data = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    stack->hash_stack = 0;
+    stack->hash_stack = MurmurHash2 ((const char *) stack, sizeof (*stack));
 
-    STACK_NOT_OK (stack);
+    STACK_NOT_OK (stack)
+
     return NO_ERROR;
 }
 
-void stack_dtor (Stack *stack) {
+int stack_dtor (Stack *stack) {
     STACK_NOT_OK(stack);
 
     memset ((char*)stack->data - sizeof (canary_t), POISON, stack->capacity * sizeof (elem_t) + 2 * sizeof (canary_t));
@@ -42,15 +40,20 @@ void stack_dtor (Stack *stack) {
     free ((char *)(stack->data) - sizeof (canary_t));
     stack->size = 0;
     stack->capacity = 0;
-    stack->canary_left = nullptr;
-    stack->canary_right = nullptr;
-    stack->hash = POISON;
 
-    fclose (dumpfile);
+    stack->canary_data_left  = 0;
+    stack->canary_data_right = 0;
+
+    stack->canary_st_left    = 0;
+    stack->canary_st_right   = 0;
+
+    stack->hash_data = POISON;
+    stack->hash_stack = POISON;
+    return NO_ERROR;
 }
 
 int stack_push (Stack *stack, elem_t value) {
-    STACK_NOT_OK (stack);
+    STACK_NOT_OK (stack)
 
     if (stack->size == stack->capacity) {
         int status = stack_resize (stack, UP);
@@ -61,7 +64,9 @@ int stack_push (Stack *stack, elem_t value) {
     }
 
     stack->data[stack->size++] = value;
-    stack->hash = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    stack->hash_data = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    stack->hash_stack = 0;
+    stack->hash_stack = MurmurHash2 ((const char *) stack, stack_size);
 
     STACK_NOT_OK (stack);
     return NO_ERROR;
@@ -77,10 +82,14 @@ elem_t stack_pop (Stack *stack) {
         }
     }
     stack->size--;
-    stack->hash = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    elem_t pop_elem = stack->data[stack->size];
+    stack->data[stack->size] = POISON;
+
+    stack->hash_data = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    stack->hash_stack = calc_stack_hash (stack);
 
     STACK_NOT_OK (stack);
-    return stack->data[stack->size];
+    return pop_elem;
 }
 
 size_t cap_incr (size_t capacity) {
@@ -114,17 +123,25 @@ int stack_resize (Stack *stack, FLAG up_or_down) {
         return NULL_PTR;
     }
 
-    stack->canary_left = (canary_t *) stack->data;
-    *stack->canary_left = CANARY_DATA;
+    stack->canary_data_left = *((canary_t *) stack->data);
+    stack->canary_data_left = CANARY_DATA;
 
     stack->data = (elem_t  *)((char *) stack->data + sizeof (canary_t)); //move pointer to data
 
-    stack->canary_right = (canary_t *) (stack->data + stack->capacity);
-    *stack->canary_right = CANARY_DATA;
-    stack->hash = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    stack->canary_data_right = *((canary_t *) (stack->data + stack->capacity));
+    stack->canary_data_right = CANARY_DATA;
+    stack->canary_st_left  = CANARY_STACK;
+    stack->canary_st_right = CANARY_STACK;
+    stack->hash_data = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+    stack->hash_stack = calc_stack_hash (stack);
 
     STACK_NOT_OK (stack);
     return NO_ERROR;
+}
+
+unsigned calc_stack_hash (Stack *stack) {
+    stack->hash_stack = 0;
+    return MurmurHash2 ((const char *) stack, stack_size);
 }
 
 bool check_nullptr (const void *ptr) {
@@ -138,43 +155,69 @@ int check_size_and_capacity (const Stack *stack) {
     return (stack->size > stack->capacity);
 }
 
-int check_canary (canary_t *canary) {
-    return (*(canary) != CANARY_DATA);
-}
-
-int check_hash (const Stack *stack, unsigned hash) {
-    return (stack->hash != hash);
-}
-
 int stack_not_ok (Stack *stack, const char *file, const char *function, int line) {
     CHECK_NULLPTR (stack);
     CHECK_NULLPTR (stack->data);
 
-    //fprintf (dumpfile, "from file %s function %s was called on %d line\n\n", file, function, line);
     if (check_size_and_capacity (stack)) {
+        OPEN_DUMPFILE()
+        fprintf (dumpfile, "From file %s function %s was called on %d line\n\n", file, function, line);
         fprintf (dumpfile, "Stack's capacity is less than size\n");
         STACK_DUMP (stack);
         return CAPACITY_LESS_SIZE;
     }
 
-    if (check_canary (stack->canary_left)) {
-        fprintf (dumpfile, "Left canary was changed\n");
+    if (stack->canary_data_left != CANARY_DATA) {
+        OPEN_DUMPFILE()
+        fprintf (dumpfile, "From file %s function %s was called on %d line\n\n", file, function, line);
+        fprintf (dumpfile, "Left canary for data was changed\n");
         STACK_DUMP (stack);
-        return ERROR_LEFT_CANARY;
+        return ERROR_LEFT_DATA_CANARY;
     }
 
-    if (check_canary (stack->canary_right)) {
-        fprintf (dumpfile, "Right canary was changed\n");
+    if (stack->canary_data_right != CANARY_DATA) {
+        OPEN_DUMPFILE()
+        fprintf (dumpfile, "From file %s function %s was called on %d line\n\n", file, function, line);
+        fprintf (dumpfile, "Right canary for data was changed\n");
         STACK_DUMP (stack);
-        return ERROR_RIGHT_CANARY;
+        return ERROR_RIGHT_DATA_CANARY;
     }
 
-    unsigned hash_act = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
-    unsigned hash_exp = stack->hash;
+    if ((stack->canary_st_left != CANARY_STACK)) {
+        OPEN_DUMPFILE()
+        fprintf (dumpfile, "From file %s function %s was called on %d line\n\n", file, function, line);
+        fprintf (dumpfile, "Left canary for stack was changed\n");
+        STACK_DUMP (stack);
+        return ERROR_LEFT_STACK_CANARY;
+    }
 
-    if (check_hash (stack, hash_act)) {
-        fprintf (dumpfile, "Hash mismatch. Expected value: %d, Actual value: %d\n", hash_exp, hash_act);
-        //STACK_DUMP (stack);
+    if (stack->canary_st_right != CANARY_STACK) {
+        OPEN_DUMPFILE()
+        fprintf (dumpfile, "From file %s function %s was called on %d line\n\n", file, function, line);
+        fprintf (dumpfile, "Right canary for stack was changed\n");
+        STACK_DUMP (stack);
+        return ERROR_RIGHT_STACK_CANARY;
+    }
+
+    unsigned hash_data = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
+
+    if (stack->hash_data != hash_data) {
+        OPEN_DUMPFILE()
+        fprintf (dumpfile, "From file %s function %s was called on %d line\n\n", file, function, line);
+        fprintf (dumpfile, "Hash of data mismatch. Expected value: %d, Actual value: %d\n", stack->hash_data, hash_data);
+        STACK_DUMP (stack);
+        return ERROR_HASH;
+    }
+
+    const unsigned hash_stack_exp = stack->hash_stack;
+    unsigned hash_stack_act = calc_stack_hash (stack);
+    stack->hash_stack = hash_stack_exp;
+
+    if (hash_stack_exp != hash_stack_act) {
+        OPEN_DUMPFILE()
+        fprintf (dumpfile, "from file %s function %s was called on %d line\n\n", file, function, line);
+        fprintf (dumpfile, "Hash of stack mismatch. Expected value: %d, Actual value: %d\n", hash_stack_exp, hash_stack_act);
+        STACK_DUMP (stack);
         return ERROR_HASH;
     }
 
@@ -229,16 +272,16 @@ int stack_dump (Stack *stack, const char *file, const char *function, int line) 
     CHECK_NULLPTR (stack);
     CHECK_NULLPTR (stack->data);
     fprintf (dumpfile, "DUMP was called from %s file, %s function, %d line\n", file, function, line);
-    fprintf (dumpfile, "stack [%p]\n", stack);
+    fprintf (dumpfile, "Stack [%p]\n", stack);
     fprintf (dumpfile, "Current size of stack is: %zu\t\t\tcapacity is: %zu\n", stack->size, stack->capacity);
-    fprintf (dumpfile, "Hash value is: %d\n", stack->hash);
 
     fprintf (dumpfile, "Elements of data are:\n");
 
     print_data_elem (stack);
-    fprintf (dumpfile, "left  canary is: %llu\n", *(stack->canary_left));
-    fprintf (dumpfile, "right canary is: %llu\n", *(stack->canary_right));
-    fprintf (dumpfile, "hash of stack is: %d\n\n\n", stack->hash);
+    fprintf (dumpfile, "Left  canary is: %llu\n", stack->canary_data_left);
+    fprintf (dumpfile, "Right canary is: %llu\n", stack->canary_data_right);
+    fprintf (dumpfile, "Hash of stack's data is: %d\n", stack->hash_data);
+    fprintf (dumpfile, "Hash of stack is: %d\n\n\n", stack->hash_stack);
 }
 
 void print_data_elem (Stack *stack) {
@@ -253,11 +296,11 @@ void print_data_elem (Stack *stack) {
 }
 
 int stack_test (Stack *stack, const long capacity) {
-
     int status_ctor = stack_ctor (stack, capacity);
+
     assert (status_ctor == NO_ERROR);
 
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 40; i++) {
         int status_push = stack_push(stack, 2 * i);
         assert (status_push == NO_ERROR);
     }
@@ -265,7 +308,28 @@ int stack_test (Stack *stack, const long capacity) {
     for (int i = 0; i < 26; i++) {
         stack_pop (stack);
     }
-    STACK_DUMP (stack);
 
+    OPEN_DUMPFILE()
+    STACK_DUMP (stack);
     stack_dtor (stack);
+}
+
+
+int open_dumpfile () {
+    static int number_open = 0;
+
+    if (number_open == 0) {
+        dumpfile = fopen("../dump.txt", "w");
+        number_open++;
+
+    } else if (number_open == 1) {
+        fclose (dumpfile);
+        dumpfile = fopen("../dump.txt", "a");
+        number_open++;
+    }
+
+    if (dumpfile == nullptr) {
+        perror ("Error in opening dumpfile\n");
+        return ERROR_OPEN_FILE;
+    }
 }
