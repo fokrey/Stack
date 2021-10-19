@@ -1,6 +1,13 @@
-DUMP was called from C:\Users\aikyn\Documents\ClionProjects\Stack\Stack.cpp file, stack_test function, 313 line
+DUMP was called from C:\Users\aikyn\Documents\ClionProjects\Stack\Stack.cpp file, stack_test function, 322 line
 Stack [000000000061FDC0]
-Current size of stack is: 14			capacity is: 40
+Current size of stack is: 10			capacity is: 80
+Left  canary of data is: 0xbadbabe
+Right canary of data is: 0xbadbabe
+Left  canary of stack is: 0xbadbeda
+Right canary of stack is: 0xbadbeda
+Hash of stack's data is: 289ecbbd
+Hash of stack is: f37faa4e
+
 Elements of data are:
 *[0] = 0
 *[1] = 2
@@ -12,39 +19,74 @@ Elements of data are:
 *[7] = 14
 *[8] = 16
 *[9] = 18
-*[10] = 20
-*[11] = 22
-*[12] = 24
-*[13] = 26
- [14] = 3738381229
- [15] = 3738381229
- [16] = 3738381229
- [17] = 3738381229
- [18] = 3738381229
- [19] = 3738381229
- [20] = 3738381229
- [21] = 3738381229
- [22] = 3738381229
- [23] = 3738381229
- [24] = 3738381229
- [25] = 3738381229
- [26] = 3738381229
- [27] = 3738381229
- [28] = 3738381229
- [29] = 3738381229
- [30] = 3738381229
- [31] = 3738381229
- [32] = 3738381229
- [33] = 3738381229
- [34] = 3738381229
- [35] = 3738381229
- [36] = 3738381229
- [37] = 3738381229
- [38] = 3738381229
- [39] = 3738381229
-Left  canary is: 195934910
-Right canary is: 195934910
-Hash of stack's data is: -1567594244
-Hash of stack is: 822750137
-
+ [10] = ded32bad
+ [11] = ded32bad
+ [12] = ded32bad
+ [13] = ded32bad
+ [14] = ded32bad
+ [15] = ded32bad
+ [16] = ded32bad
+ [17] = ded32bad
+ [18] = ded32bad
+ [19] = ded32bad
+ [20] = ded32bad
+ [21] = ded32bad
+ [22] = ded32bad
+ [23] = ded32bad
+ [24] = ded32bad
+ [25] = ded32bad
+ [26] = ded32bad
+ [27] = ded32bad
+ [28] = ded32bad
+ [29] = ded32bad
+ [30] = ded32bad
+ [31] = ded32bad
+ [32] = ded32bad
+ [33] = ded32bad
+ [34] = ded32bad
+ [35] = ded32bad
+ [36] = ded32bad
+ [37] = ded32bad
+ [38] = ded32bad
+ [39] = ded32bad
+ [40] = ded32bad
+ [41] = ded32bad
+ [42] = ded32bad
+ [43] = ded32bad
+ [44] = ded32bad
+ [45] = ded32bad
+ [46] = ded32bad
+ [47] = ded32bad
+ [48] = ded32bad
+ [49] = ded32bad
+ [50] = ded32bad
+ [51] = ded32bad
+ [52] = ded32bad
+ [53] = ded32bad
+ [54] = ded32bad
+ [55] = ded32bad
+ [56] = ded32bad
+ [57] = ded32bad
+ [58] = ded32bad
+ [59] = ded32bad
+ [60] = ded32bad
+ [61] = ded32bad
+ [62] = ded32bad
+ [63] = ded32bad
+ [64] = ded32bad
+ [65] = ded32bad
+ [66] = ded32bad
+ [67] = ded32bad
+ [68] = ded32bad
+ [69] = ded32bad
+ [70] = ded32bad
+ [71] = ded32bad
+ [72] = ded32bad
+ [73] = ded32bad
+ [74] = ded32bad
+ [75] = ded32bad
+ [76] = ded32bad
+ [77] = ded32bad
+ [78] = ded32bad
+ [79] = ded32bad
 

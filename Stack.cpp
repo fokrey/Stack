@@ -75,7 +75,7 @@ int stack_push (Stack *stack, elem_t value) {
 elem_t stack_pop (Stack *stack) {
     STACK_NOT_OK (stack);
 
-    if (stack->size <= cap_decr (stack->capacity) && stack->size > stack->start_capacity) {
+    if (stack->size <= cap_decrease (stack->capacity) && stack->size > stack->start_capacity) {
         int status = stack_resize (stack, DOWN);
         if (status != NO_ERROR) {
             return status;
@@ -92,12 +92,12 @@ elem_t stack_pop (Stack *stack) {
     return pop_elem;
 }
 
-size_t cap_incr (size_t capacity) {
+size_t cap_increase (size_t capacity) {
     return 2 * capacity;
 }
 
-size_t cap_decr (size_t capacity) {
-    return capacity / 2;
+size_t cap_decrease (size_t capacity) {
+    return capacity / 4;
 }
 
 int stack_resize (Stack *stack, FLAG up_or_down) {
@@ -105,12 +105,12 @@ int stack_resize (Stack *stack, FLAG up_or_down) {
 
     size_t new_size = 0;
     if (up_or_down == UP) {
-        new_size = cap_incr (stack->capacity);
-        stack->capacity *= 2;
+        new_size = cap_increase(stack->capacity);
+        stack->capacity = cap_increase (stack->capacity);
     }
     if (up_or_down == DOWN) {
-        new_size = cap_decr (stack->capacity);
-        stack->capacity /= 2;
+        new_size = cap_decrease (stack->capacity);
+        stack->capacity = cap_decrease (stack->capacity);
     }
 
     elem_t *temp = stack->data;
@@ -134,6 +134,12 @@ int stack_resize (Stack *stack, FLAG up_or_down) {
     stack->canary_st_right = CANARY_STACK;
     stack->hash_data = MurmurHash2 ((const char *) stack->data, stack->size * sizeof (elem_t));
     stack->hash_stack = calc_stack_hash (stack);
+
+    if (up_or_down == UP) {
+        for (int i = stack->size; i < stack->capacity; i++) {
+            stack->data[i] = POISON;
+        }
+    }
 
     STACK_NOT_OK (stack);
     return NO_ERROR;
@@ -275,13 +281,16 @@ int stack_dump (Stack *stack, const char *file, const char *function, int line) 
     fprintf (dumpfile, "Stack [%p]\n", stack);
     fprintf (dumpfile, "Current size of stack is: %zu\t\t\tcapacity is: %zu\n", stack->size, stack->capacity);
 
-    fprintf (dumpfile, "Elements of data are:\n");
+    fprintf (dumpfile, "Left  canary of data is: 0x%llx\n", stack->canary_data_left);
+    fprintf (dumpfile, "Right canary of data is: 0x%llx\n", stack->canary_data_right);
+    fprintf (dumpfile, "Left  canary of stack is: 0x%llx\n", stack->canary_st_left);
+    fprintf (dumpfile, "Right canary of stack is: 0x%llx\n", stack->canary_st_right);
+    fprintf (dumpfile, "Hash of stack's data is: %x\n", stack->hash_data);
+    fprintf (dumpfile, "Hash of stack is: %x\n\n", stack->hash_stack);
 
+    fprintf (dumpfile, "Elements of data are:\n");
     print_data_elem (stack);
-    fprintf (dumpfile, "Left  canary is: %llu\n", stack->canary_data_left);
-    fprintf (dumpfile, "Right canary is: %llu\n", stack->canary_data_right);
-    fprintf (dumpfile, "Hash of stack's data is: %d\n", stack->hash_data);
-    fprintf (dumpfile, "Hash of stack is: %d\n\n\n", stack->hash_stack);
+    fprintf (dumpfile, "\n");
 }
 
 void print_data_elem (Stack *stack) {
@@ -290,7 +299,7 @@ void print_data_elem (Stack *stack) {
             fprintf(dumpfile, "*[%d] = %d\n", i, stack->data[i]);
         }
         else {
-            fprintf (dumpfile, " [%d] = %llu\n", i, stack->data[i]);
+            fprintf (dumpfile, " [%d] = %x\n", i, stack->data[i]);
         }
     }
 }
@@ -305,7 +314,7 @@ int stack_test (Stack *stack, const long capacity) {
         assert (status_push == NO_ERROR);
     }
 
-    for (int i = 0; i < 26; i++) {
+    for (int i = 0; i < 30; i++) {
         stack_pop (stack);
     }
 
